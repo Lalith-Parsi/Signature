@@ -1,0 +1,9 @@
+project/
+├── main.py
+├── model/
+│   └── best_signature_model.pth
+├── signature_classifier.py
+├── utils.py
+├── test_docs/
+│   └── sample.pdf
+└── outputs/
