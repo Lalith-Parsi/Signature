@@ -1,1 +1,665 @@
-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
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, StaleElementReferenceException
+import time
+import os
+import glob
+from datetime import datetime
+
+class MichiganAutomation:
+    def __init__(self, download_path=None):
+        """Initialize with a new Chrome browser"""
+        self.download_path = download_path or os.path.join(os.getcwd(), "downloads", 
+            datetime.now().strftime("%Y%m%d_%H%M%S"))
+        self.setup_chrome_browser()
+        self.total_downloads = 0
+        self.processed_pages = 0
+    
+    def setup_chrome_browser(self):
+        """Setup a new Chrome browser with custom options"""
+        try:
+            print("🚀 Starting new Chrome browser...")
+            
+            # Setup Chrome options
+            options = Options()
+            
+            # Create download directory
+            os.makedirs(self.download_path, exist_ok=True)
+            
+            # Configure Chrome options
+            options.add_experimental_option("prefs", {
+                "download.default_directory": self.download_path,
+                "download.prompt_for_download": False,
+                "download.directory_upgrade": True,
+                "safebrowsing.enabled": True
+            })
+            
+            # Additional options for stability
+            options.add_argument("--start-maximized")
+            options.add_argument("--disable-extensions")
+            options.add_argument("--disable-popup-blocking")
+            options.add_argument("--disable-infobars")
+            
+            # Initialize Chrome driver
+            self.driver = webdriver.Chrome(options=options)
+            self.wait = WebDriverWait(self.driver, 15)
+            
+            print("✅ Chrome browser started successfully!")
+            print(f"📁 Downloads will be saved to: {self.download_path}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to start Chrome browser: {e}")
+            return False
+    
+    def click_any_ok_button(self):
+        """Generic function to find and click any OK button on the page"""
+        try:
+            # List of possible OK button selectors
+            ok_button_selectors = [
+                # Specific button you mentioned
+                "//div[@class='generic-modal']//button[4]",
+                "/html/body/div[1]/div/div/generic-modal/div[3]/button[4]",
+                
+                # Generic OK button selectors
+                "//button[contains(text(), 'OK')]",
+                "//button[contains(text(), 'Ok')]",
+                "//button[contains(@class, 'flatButton') and contains(text(), 'OK')]",
+                "//input[@value='OK']",
+                "//input[@value='Ok']",
+                
+                # Modal OK buttons
+                "//div[contains(@class, 'modal')]//button[contains(text(), 'OK')]",
+                "//div[contains(@class, 'dialog')]//button[contains(text(), 'OK')]",
+                
+                # Any button with OK text
+                "//*[contains(text(), 'OK') and (name()='button' or name()='input')]"
+            ]
+            
+            for selector in ok_button_selectors:
+                try:
+                    # Wait for button with short timeout
+                    ok_button = WebDriverWait(self.driver, 2).until(
+                        EC.element_to_be_clickable((By.XPATH, selector))
+                    )
+                    
+                    # Click the button if found
+                    ok_button.click()
+                    print(f"✅ Clicked OK button using selector: {selector}")
+                    time.sleep(1)
+                    return True
+                    
+                except (TimeoutException, NoSuchElementException):
+                    continue
+                except Exception as e:
+                    print(f"⚠️  Error with selector {selector}: {e}")
+                    continue
+            
+            print("ℹ️  No OK button found - continuing...")
+            return False
+            
+        except Exception as e:
+            print(f"⚠️  Error in OK button handler: {e}")
+            return False
+    
+    def login_to_michigan_filing(self, email="Michigan@mandarichlaw.com", password="MiTeam1!"):
+        """Login to Michigan filing system"""
+        try:
+            print("\n🔐 Starting login process...")
+            
+            # Navigate to login page
+            url = "https://mifile.courts.michigan.gov/filings/myHistory"
+            print(f"🌐 Navigating to: {url}")
+            self.driver.get(url)
+            time.sleep(3)
+            
+            # Check for and click any OK button BEFORE login
+            print("🔍 Checking for OK buttons before login...")
+            self.click_any_ok_button()
+            time.sleep(2)
+            
+            # Find and fill email field
+            print("📧 Looking for email field...")
+            email_field = self.wait.until(EC.presence_of_element_located(
+                (By.XPATH, "//input[@type='email']")
+            ))
+            email_field.clear()
+            email_field.send_keys(email)
+            print(f"✅ Entered email: {email}")
+            time.sleep(1)
+            
+            # Find and fill password field
+            print("🔒 Looking for password field...")
+            password_field = self.wait.until(EC.presence_of_element_located(
+                (By.XPATH, "//input[@type='password']")
+            ))
+            password_field.clear()
+            password_field.send_keys(password)
+            print("✅ Entered password")
+            time.sleep(1)
+            
+            # Find and click login button
+            print("🔘 Looking for login button...")
+            login_button = self.wait.until(EC.element_to_be_clickable(
+                (By.XPATH, "//button[contains(text(), 'Log in')] | //input[@type='submit']")
+            ))
+            login_button.click()
+            print("✅ Clicked login button")
+            
+            # Wait for login to complete
+            print("⏳ Waiting for login to complete...")
+            time.sleep(5)
+            
+            # Check for and click any OK button AFTER login
+            print("🔍 Checking for OK buttons after login...")
+            self.click_any_ok_button()
+            time.sleep(2)
+            
+            print("✅ Login completed!")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Login failed: {e}")
+            return False
+    
+    def set_date_and_search(self, start_date="07/01/2025"):
+        """Set the start date and click search button"""
+        try:
+            print("\n📅 Setting date and searching...")
+            
+            # Wait for date input field (with delay)
+            print("🔍 Looking for date input field...")
+            time.sleep(2)
+            
+            date_field = self.wait.until(EC.presence_of_element_located(
+                (By.ID, "StartDateFilingHistoryPane")
+            ))
+            
+            # Clear existing date (with delay)
+            print("🗑️  Clearing existing date...")
+            date_field.clear()
+            time.sleep(1)
+            
+            # Enter new date (with delay)
+            print(f"📅 Entering date: {start_date}")
+            date_field.send_keys(start_date)
+            time.sleep(2)
+            
+            # Find and click search button (with delay)
+            print("🔍 Looking for search button...")
+            search_button = self.wait.until(EC.element_to_be_clickable(
+                (By.XPATH, "//button[contains(@class, 'flatButton-link') and contains(@ng-click, 'getHistory()')]")
+            ))
+            
+            # Click search button
+            print("🔎 Clicking search button...")
+            search_button.click()
+            
+            # Wait for entries to load after search
+            print("⏳ Waiting for search results to load...")
+            time.sleep(5)  # Extended wait for entries to load
+            
+            print("✅ Date set and search completed!")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error setting date and searching: {e}")
+            return False
+    
+    def extract_filing_name_from_row(self, row):
+        """Extract filing name from the row"""
+        try:
+            # Look for filing name span with title attribute
+            filing_name_spans = row.find_elements(By.XPATH, 
+                ".//span[@data-toggle='tooltip' and @title]")
+            
+            # Find the span that contains a number (filing name)
+            for span in filing_name_spans:
+                title = span.get_attribute('title')
+                text = span.text.strip()
+                
+                # Check if it's a filing number (contains digits)
+                if title and title.isdigit() and len(title) >= 8:
+                    print(f"  📋 Found filing name: {title}")
+                    return title
+                elif text and text.isdigit() and len(text) >= 8:
+                    print(f"  📋 Found filing name: {text}")
+                    return text
+            
+            # Fallback: look for any span with numeric content
+            numeric_spans = row.find_elements(By.XPATH, 
+                ".//span[string-length(text()) >= 8 and translate(text(), '0123456789', '') = '']")
+            
+            if numeric_spans:
+                filing_name = numeric_spans[0].text.strip()
+                print(f"  📋 Found filing name (fallback): {filing_name}")
+                return filing_name
+            
+            print("  ⚠️  Could not extract filing name from row")
+            return None
+            
+        except Exception as e:
+            print(f"  ❌ Error extracting filing name: {e}")
+            return None
+    
+    def get_latest_download(self):
+        """Get the most recently downloaded file"""
+        try:
+            # Look for PDF files in download directory
+            pdf_files = glob.glob(os.path.join(self.download_path, "*.pdf"))
+            
+            if not pdf_files:
+                return None
+            
+            # Get the most recent file
+            latest_file = max(pdf_files, key=os.path.getctime)
+            return latest_file
+            
+        except Exception as e:
+            print(f"  ❌ Error finding latest download: {e}")
+            return None
+    
+    def wait_for_download_completion(self, timeout=30):
+        """Wait for download to complete"""
+        try:
+            print("  ⏳ Waiting for download to complete...")
+            
+            # Get initial file count
+            initial_files = set(glob.glob(os.path.join(self.download_path, "*.pdf")))
+            
+            # Wait for new file to appear
+            for i in range(timeout):
+                time.sleep(1)
+                current_files = set(glob.glob(os.path.join(self.download_path, "*.pdf")))
+                
+                # Check for new files
+                new_files = current_files - initial_files
+                if new_files:
+                    # Wait a bit more to ensure download is complete
+                    time.sleep(2)
+                    
+                    # Check if file is still being written (size changing)
+                    new_file = list(new_files)[0]
+                    if os.path.exists(new_file):
+                        initial_size = os.path.getsize(new_file)
+                        time.sleep(1)
+                        final_size = os.path.getsize(new_file)
+                        
+                        if initial_size == final_size:
+                            print(f"  ✅ Download completed: {os.path.basename(new_file)}")
+                            return new_file
+            
+            print("  ⚠️  Download timeout - proceeding anyway")
+            return self.get_latest_download()
+            
+        except Exception as e:
+            print(f"  ❌ Error waiting for download: {e}")
+            return None
+    
+    def rename_downloaded_pdf(self, old_file_path, filing_name, filing_type_str):
+        """Rename downloaded PDF with filing name and type"""
+        try:
+            if not old_file_path or not os.path.exists(old_file_path):
+                print("  ❌ No file to rename")
+                return False
+            
+            # Format the filing type string for the filename
+            formatted_filing_type = filing_type_str.replace(" ", "_").replace("/", "")
+            
+            # Create new filename
+            new_filename = f"{filing_name}_{formatted_filing_type}.pdf"
+            new_file_path = os.path.join(self.download_path, new_filename)
+            
+            # Rename the file
+            os.rename(old_file_path, new_file_path)
+            print(f"  ✅ Renamed PDF to: {new_filename}")
+            return True
+            
+        except Exception as e:
+            print(f"  ❌ Error renaming PDF: {e}")
+            return False
+    
+    def find_matching_judgments(self):
+        """Find Proposed Judgment/Order entries with Filed status"""
+        try:
+            print("\n🔍 Looking for Proposed Judgment/Order entries with Filed status...")
+            time.sleep(3)  # Wait for entries to fully load
+            
+            # Wait for table to load
+            table_selectors = [
+                "//filing-history-filings//table",
+                "//table[contains(@class, 'filing')]",
+                "//table",
+                "//div[contains(@class, 'table')]//table"
+            ]
+            
+            table = None
+            for selector in table_selectors:
+                try:
+                    table = self.wait.until(EC.presence_of_element_located((By.XPATH, selector)))
+                    print("✅ Found filing history table")
+                    break
+                except TimeoutException:
+                    continue
+            
+            if not table:
+                print("❌ Could not find filing table")
+                return []
+            
+            # Find all rows
+            rows = table.find_elements(By.XPATH, ".//tbody/tr | .//tr[position()>1]")
+            print(f"📊 Found {len(rows)} total rows in table")
+            
+            # Filter for Proposed Judgment/Order with Filed status
+            matching_rows = []
+            for i, row in enumerate(rows, 1):
+                try:
+                    # Look for span elements with specific titles for Filing Type
+                    proposed_judgment_spans = row.find_elements(By.XPATH, 
+                        ".//span[@title='Proposed Judgment/Order' or contains(text(), 'Proposed Judgment/Order')]")
+                    
+                    # Check for Filed status
+                    filed_spans = row.find_elements(By.XPATH, 
+                        ".//span[@title='Filed' or contains(text(), 'Filed')]")
+                    
+                    # Check if both conditions are met
+                    if proposed_judgment_spans and filed_spans:
+                        # Extract filing name for this row
+                        filing_name = self.extract_filing_name_from_row(row)
+                        if filing_name:
+                            # Get the exact filing type string for renaming
+                            filing_type_text = proposed_judgment_spans[0].get_attribute('title') or proposed_judgment_spans[0].text.strip()
+                            matching_rows.append((row, filing_name, filing_type_text, "Filed"))
+                            print(f"  ✅ Row {i}: Found '{filing_type_text}' with Filed status - Filing: {filing_name}")
+                        else:
+                            print(f"  ⚠️  Row {i}: Found match but no filing name")
+                    
+                except StaleElementReferenceException:
+                    print(f"  ⚠️  Row {i}: Stale element reference, skipping.")
+                    continue
+                except Exception as e:
+                    print(f"  ⚠️  Error processing row {i}: {e}")
+                    continue
+            
+            print(f"🎯 Found {len(matching_rows)} matching entries with filing names and statuses")
+            return matching_rows
+            
+        except Exception as e:
+            print(f"❌ Error finding matching judgments: {e}")
+            return []
+    
+    def download_filed_pdf(self):
+        """Downloads PDF for 'Filed' status"""
+        print(f"  🔍 Looking for 'Status Updates' tab...")
+        status_tab = self.wait.until(EC.element_to_be_clickable(
+            (By.XPATH, "//a[@data-toggle='tab' and @href='#statusTableTab' and contains(text(), 'Status Updates')]")
+        ))
+        print(f"  🖱️  Clicking 'Status Updates' tab...")
+        status_tab.click()
+        time.sleep(3) # Wait for tab content to load
+        
+        print(f"  🔍 Looking for 'Filed Stamped Copy' button...")
+        filed_download_button = self.wait.until(EC.element_to_be_clickable(
+            (By.XPATH, "//button[contains(@title, 'Filed stamped copy') and contains(text(), 'Filed Stamped Copy')]")
+        ))
+        print(f"  📥 Clicking 'Filed Stamped Copy' button...")
+        self.driver.execute_script("arguments[0].click();", filed_download_button)
+
+    def download_pdf_from_row(self, row, filing_name, filing_type_str, status_type, row_number):
+        """Download PDF from a specific row and rename it based on status"""
+        try:
+            print(f"  📥 Processing row {row_number} (Filing: {filing_name}, Type: {filing_type_str}, Status: {status_type}) for PDF download...")
+            
+            # Scroll to row and click
+            self.driver.execute_script("arguments[0].scrollIntoView(true);", row)
+            time.sleep(2)
+            print(f"  🖱️  Clicking on row {row_number}...")
+            self.driver.execute_script("arguments[0].click();", row)
+            
+            # Wait for page to load
+            print(f"  ⏳ Waiting for details page to load...")
+            time.sleep(4)
+            
+            if status_type == "Filed":
+                self.download_filed_pdf()
+            else:
+                print(f"  ⚠️  Unknown status type: {status_type}. Skipping download.")
+                # Go back to listing if we didn't attempt download
+                print(f"  ⬅️  Going back to filing list...")
+                self.driver.back()
+                time.sleep(3)
+                return False
+            
+            # Wait for download to complete
+            downloaded_file = self.wait_for_download_completion()
+            
+            # Rename the downloaded file
+            if downloaded_file:
+                if self.rename_downloaded_pdf(downloaded_file, filing_name, filing_type_str):
+                    print(f"  ✅ Successfully downloaded and renamed PDF for filing {filing_name}")
+                    self.total_downloads += 1
+                    return True
+                else:
+                    print(f"  ⚠️  Downloaded but failed to rename PDF for filing {filing_name}")
+                    return False
+            else:
+                print(f"  ❌ Download failed for filing {filing_name}")
+                return False
+                
+        except Exception as e:
+            print(f"  ❌ Failed to download PDF from row {row_number}: {e}")
+            # Attempt to go back to the list view if an error occurs during download process
+            try:
+                print(f"  🔄 Attempting to go back to filing list due to error...")
+                self.driver.back()
+                time.sleep(3)
+            except:
+                print(f"  ⚠️  Could not go back to filing list.")
+            return False
+    
+    def navigate_to_next_page(self):
+        """Navigate to the next page without URL redirection"""
+        try:
+            print("\n🔄 Checking for next page...")
+            
+            # Store current URL to prevent redirection
+            current_url = self.driver.current_url
+            
+            # Try to find the next button
+            next_button = None
+            try:
+                # First try by ID
+                next_button = self.driver.find_element(By.ID, "historyTable_next")
+            except:
+                # Fallback selectors
+                next_selectors = [
+                    "//a[contains(@class, 'paginate_button next') and not(contains(@class, 'disabled'))]",
+                    "//a[@class='paginate_button next']",
+                    "//a[contains(@class, 'next') and not(contains(@class, 'disabled'))]"
+                ]
+                
+                for selector in next_selectors:
+                    try:
+                        next_button = self.driver.find_element(By.XPATH, selector)
+                        break
+                    except:
+                        continue
+            
+            if next_button:
+                # Check if button is disabled
+                classes = next_button.get_attribute('class') or ""
+                if 'disabled' in classes:
+                    print("ℹ️  Reached the last page - Next button is disabled")
+                    return False
+                
+                print("✅ Next page available - navigating...")
+                
+                # Scroll to button
+                self.driver.execute_script("arguments[0].scrollIntoView(true);", next_button)
+                time.sleep(1)
+                
+                # Use JavaScript click to trigger pagination without navigation
+                self.driver.execute_script("""
+                    var button = arguments[0];
+                    var event = new MouseEvent('click', {
+                        view: window,
+                        bubbles: true,
+                        cancelable: true
+                    });
+                    button.dispatchEvent(event);
+                """, next_button)
+                
+                # Wait for page content to update
+                print("⏳ Waiting for next page content to load...")
+                time.sleep(5)
+                
+                # Check if URL changed unexpectedly and navigate back if needed
+                if self.driver.current_url != current_url:
+                    print("⚠️  URL changed unexpectedly - staying on current page")
+                    self.driver.get(current_url)
+                    time.sleep(5)
+                    return False
+                
+                print("✅ Successfully navigated to next page")
+                return True
+            else:
+                print("ℹ️  No next button found - reached the end")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Error navigating to next page: {e}")
+            return False
+    
+    def process_current_page(self, page_number=1):
+        """Process all matching judgments on current page"""
+        print(f"\n📄 Processing page {page_number}")
+        print("-" * 50)
+        
+        matching_rows = self.find_matching_judgments()
+        
+        if not matching_rows:
+            print("ℹ️  No matching Proposed Judgment/Order entries found - checking next page...")
+            return 0
+        
+        successful_downloads = 0
+        for i, (row, filing_name, filing_type_str, status_type) in enumerate(matching_rows, 1):
+            print(f"\n🔄 Processing entry {i}/{len(matching_rows)} - Filing: {filing_name}, Type: {filing_type_str}, Status: {status_type}")
+            if self.download_pdf_from_row(row, filing_name, filing_type_str, status_type, i):
+                successful_downloads += 1
+                print(f"✅ Successfully processed entry {i}")
+            else:
+                print(f"❌ Failed to process entry {i}")
+        
+        print(f"\n📊 Page {page_number} summary: {successful_downloads}/{len(matching_rows)} PDFs downloaded")
+        return successful_downloads
+    
+    def process_all_pages(self):
+        """Process all pages automatically"""
+        try:
+            print("\n🚀 Starting to process all pages...")
+            page_number = 1
+            
+            while True:
+                print(f"\n{'='*60}")
+                print(f"📄 PROCESSING PAGE {page_number}")
+                print(f"{'='*60}")
+                
+                # Process current page
+                page_downloads = self.process_current_page(page_number)
+                self.processed_pages += 1
+                
+                # Show progress
+                print(f"\n📊 PROGRESS UPDATE:")
+                print(f"   Pages processed: {self.processed_pages}")
+                print(f"   Total downloads: {self.total_downloads}")
+                
+                # If no PDFs found on current page, try next page
+                if page_downloads == 0:
+                    if self.navigate_to_next_page():
+                        page_number += 1
+                        continue
+                    else:
+                        print(f"\n🎉 Reached the last page - completed!")
+                        break
+                
+                # If PDFs were found and downloaded, continue processing current page
+                # This means we need to go back to the list view to process the next row on the same page
+                # The download_pdf_from_row function already handles going back to the list view.
+                # So, after processing all matching rows on the current page, we check for the next page.
+                if self.navigate_to_next_page():
+                    page_number += 1
+                    continue
+                else:
+                    print(f"\n🎉 Reached the last page - completed!")
+                    break
+            
+            # Final summary
+            print(f"\n{'='*60}")
+            print(f"🎉 FINAL SUMMARY")
+            print(f"{'='*60}")
+            print(f"📄 Total pages processed: {self.processed_pages}")
+            print(f"📥 Total PDFs downloaded: {self.total_downloads}")
+            print(f"📁 Download location: {self.download_path}")
+            print(f"{'='*60}")
+            
+            return self.total_downloads
+            
+        except Exception as e:
+            print(f"❌ Error in process_all_pages: {e}")
+            return self.total_downloads
+
+def main():
+    """Main function with complete automation flow"""
+    print("🏛️  Michigan Filing Complete Automation")
+    print("=" * 60)
+    
+    try:
+        # Create automation instance with custom download path
+        download_path = os.path.join(os.getcwd(), "michigan_pdfs")
+        automation = MichiganAutomation(download_path)
+        
+        # Step 1: Perform login
+        print("\n" + "="*20 + " STEP 1: LOGIN " + "="*20)
+        if automation.login_to_michigan_filing():
+            print("✅ Login successful!")
+            
+            # Step 2: Set date and search
+            print("\n" + "="*20 + " STEP 2: DATE & SEARCH " + "="*20)
+            time.sleep(2)  # Add delay before next step
+            
+            if automation.set_date_and_search():
+                print("✅ Date set and search completed!")
+                
+                # Step 3: Process all pages automatically
+                print("\n" + "="*20 + " STEP 3: PROCESS ALL PAGES " + "="*20)
+                time.sleep(3)  # Wait for search results to load
+                
+                total_downloads = automation.process_all_pages()
+                print(f"\n🎉 Complete automation finished!")
+                print(f"📥 Total PDFs downloaded: {total_downloads}")
+                print(f"📁 Download location: {automation.download_path}")
+                
+                # Keep browser open but don't ask for input
+                print("\n" + "="*60)
+                print("✅ Automation completed successfully!")
+                print("🌐 Browser will remain open")
+                print("=" * 60)
+                
+            else:
+                print("⚠️  Failed to set date and search")
+                
+        else:
+            print("❌ Login failed!")
+            
+    except KeyboardInterrupt:
+        print("\n\n⚠️  Process interrupted by user")
+        print("🌐 Browser will remain open")
+    except Exception as e:
+        print(f"\n❌ Unexpected error: {e}")
+        print("🌐 Browser will remain open")
+
+if __name__ == "__main__":
+    main()
